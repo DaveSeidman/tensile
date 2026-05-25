@@ -71,7 +71,7 @@ export default function Controls({
   return (
     <aside className="controls">
       <header className="controls__header">
-        <h1>Twister Blinds</h1>
+        <h1>Tensile</h1>
         <p>Interactive motorized twist-strip prototype with manual sliders and preset animation sequences.</p>
       </header>
 
@@ -195,20 +195,20 @@ export default function Controls({
               <span>{String(index + 1).padStart(2, '0')}</span>
               <div className="controls__motor-pair">
                 {['top', 'bottom'].map((motor) => (
-                <input
-                  key={motor}
-                  className={`controls__motor controls__motor--${motor}`}
-                  type="range"
-                  min="-10"
-                  max="10"
-                  step="0.05"
-                  value={values[motor]}
-                  disabled={presetMode}
-                  aria-label={`Strip ${index + 1} ${motor} motor`}
-                  title={`${motor} ${values[motor].toFixed(2)}`}
-                  style={{ '--progress': `${((values[motor] + 10) / 20) * 100}%` }}
-                  onChange={(event) => setTurn(index, motor, event.target.value)}
-                />
+                  <input
+                    key={motor}
+                    className={`controls__motor controls__motor--${motor}`}
+                    type="range"
+                    min="-10"
+                    max="10"
+                    step="0.05"
+                    value={values[motor]}
+                    disabled={presetMode}
+                    aria-label={`Strip ${index + 1} ${motor} motor`}
+                    title={`${motor} ${values[motor].toFixed(2)}`}
+                    style={{ '--progress': `${((values[motor] + 10) / 20) * 100}%` }}
+                    onChange={(event) => setTurn(index, motor, event.target.value)}
+                  />
                 ))}
               </div>
             </div>
