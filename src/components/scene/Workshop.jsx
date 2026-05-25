@@ -19,15 +19,15 @@ export default function Workshop({ children, effects }) {
   const controlsRef = useRef(null);
   const [benchColor, benchNormal, benchRoughness, floorColor, floorNormal, floorRoughness, wallColor, wallNormal, wallRoughness] =
     useLoader(EXRLoader, [
-      '/textures/weathered_planks_diff_1k.exr',
-      '/textures/weathered_planks_nor_dx_1k.exr',
-      '/textures/weathered_planks_rough_1k.exr',
-      '/textures/concrete_floor_worn_001_diff_1k.exr',
-      '/textures/concrete_floor_worn_001_nor_dx_1k.exr',
-      '/textures/concrete_floor_worn_001_rough_1k.exr',
-      '/textures/concrete_floor_worn_001_diff_1k.exr',
-      '/textures/concrete_floor_worn_001_nor_dx_1k.exr',
-      '/textures/concrete_floor_worn_001_rough_1k.exr',
+      'textures/weathered_planks_diff_1k.exr',
+      'textures/weathered_planks_nor_dx_1k.exr',
+      'textures/weathered_planks_rough_1k.exr',
+      'textures/concrete_floor_worn_001_diff_1k.exr',
+      'textures/concrete_floor_worn_001_nor_dx_1k.exr',
+      'textures/concrete_floor_worn_001_rough_1k.exr',
+      'textures/concrete_floor_worn_001_diff_1k.exr',
+      'textures/concrete_floor_worn_001_nor_dx_1k.exr',
+      'textures/concrete_floor_worn_001_rough_1k.exr',
     ]);
 
   useMemo(() => {
@@ -56,19 +56,19 @@ export default function Workshop({ children, effects }) {
 
   const sceneSurfaces = effects.look === 'light'
     ? {
-        background: '#f7f7f4',
-        floorTint: '#ffffff',
-        wallTint: '#ffffff',
-        metalness: 0.45,
-        roughness: 0.22,
-      }
+      background: '#f7f7f4',
+      floorTint: '#ffffff',
+      wallTint: '#ffffff',
+      metalness: 0.45,
+      roughness: 0.22,
+    }
     : {
-        background: '#050608',
-        floorTint: '#8f9390',
-        wallTint: '#9ca0a4',
-        metalness: 0.18,
-        roughness: 0.58,
-      };
+      background: '#050608',
+      floorTint: '#8f9390',
+      wallTint: '#9ca0a4',
+      metalness: 0.18,
+      roughness: 0.58,
+    };
   const woodMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
