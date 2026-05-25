@@ -1,0 +1,191 @@
+import React from 'react';
+import { MAX_FRAME, sequenceValue } from '../../demoSequence';
+import './index.scss';
+
+const MAX_STRIPS = 24;
+const FINISHES = [
+  ['matte', 'Matte'],
+  ['satin', 'Satin'],
+  ['gloss', 'Gloss'],
+];
+const ENVIRONMENTS = [
+  ['dark', 'Dark', { look: 'dark', ambient: 0.07, hemi: 0.22, key: 10, fill: 2.2, floor: 1.25, film: 0.22 }],
+  ['light', 'Bright', { look: 'light', ambient: 0.28, hemi: 0.72, key: 30, fill: 10, floor: 0.8, film: 0.08 }],
+];
+
+function getMotorValue({ presetMode, frame, stripCount, turns, index, motor }) {
+  if (presetMode) {
+    return sequenceValue(frame, index, stripCount)[motor];
+  }
+
+  return turns[index]?.[motor] ?? 0;
+}
+
+export default function Controls({
+  stripCount,
+  setStripCount,
+  turns,
+  setTurns,
+  playing,
+  setPlaying,
+  presetMode,
+  setPresetMode,
+  frame,
+  setFrame,
+  materialSettings,
+  setMaterialSettings,
+  effects,
+  setEffects,
+}) {
+  const setTurn = (index, motor, value) => {
+    setTurns((current) => {
+      const next = [...current];
+      next[index] = {
+        ...(next[index] ?? { top: 0, bottom: 0 }),
+        [motor]: Number(value),
+      };
+      return next;
+    });
+  };
+  const toggleMode = () => {
+    if (presetMode) {
+      setPresetMode(false);
+      setPlaying(false);
+      return;
+    }
+
+    setPresetMode(true);
+    setPlaying(true);
+  };
+
+  return (
+    <aside className="controls">
+      <header className="controls__header">
+        <h1>Twister Blinds</h1>
+        <p>Interactive motorized twist-strip prototype with manual sliders and preset animation sequences.</p>
+      </header>
+
+      <label className="controls__field">
+        <span>
+          Strip Count <strong>{stripCount}</strong>
+        </span>
+        <input
+          type="range"
+          min="1"
+          max={MAX_STRIPS}
+          value={stripCount}
+          onChange={(event) => setStripCount(Number(event.target.value))}
+        />
+      </label>
+
+      <div className="controls__buttons">
+        <button onClick={toggleMode}>{presetMode ? 'Manual' : 'Demo'}</button>
+        <button onClick={() => setPlaying(!playing)}>{playing ? 'Pause' : 'Play'}</button>
+        <button onClick={() => setFrame(0)}>Restart</button>
+      </div>
+
+      <label className="controls__field">
+        <span>
+          Frame <strong>{Math.round(frame)}</strong>
+        </span>
+        <input
+          type="range"
+          min="0"
+          max={MAX_FRAME}
+          value={frame}
+          onChange={(event) => setFrame(Number(event.target.value))}
+        />
+      </label>
+
+      <details className="controls__material">
+        <summary>
+          <span>Look</span>
+          <strong>{FINISHES.find(([value]) => value === materialSettings.finish)?.[1]}</strong>
+        </summary>
+        <div className="controls__material-body">
+          <div className="controls__section-title">Lighting</div>
+          <div className="controls__segments">
+            {ENVIRONMENTS.map(([value, label, preset]) => (
+              <button
+                type="button"
+                key={value}
+                onClick={() => setEffects((current) => ({ ...current, ...preset }))}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="controls__section-title">Material</div>
+          <label className="controls__color">
+            <span>Color</span>
+            <input
+              type="color"
+              value={materialSettings.color}
+              onChange={(event) => setMaterialSettings((current) => ({ ...current, color: event.target.value }))}
+            />
+          </label>
+          <div className="controls__segments">
+            {FINISHES.map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                className={materialSettings.finish === value ? 'is-active' : ''}
+                onClick={() => setMaterialSettings((current) => ({ ...current, finish: value }))}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="controls__field controls__field--compact">
+            <span>
+              Translucency <strong>{Math.round(materialSettings.transmission * 100)}%</strong>
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="0.85"
+              step="0.01"
+              value={materialSettings.transmission}
+              onChange={(event) =>
+                setMaterialSettings((current) => ({ ...current, transmission: Number(event.target.value) }))
+              }
+            />
+          </label>
+        </div>
+      </details>
+
+      <div className="controls__sliders">
+        {Array.from({ length: stripCount }, (_, index) => {
+          const values = {
+            top: getMotorValue({ presetMode, frame, stripCount, turns, index, motor: 'top' }),
+            bottom: getMotorValue({ presetMode, frame, stripCount, turns, index, motor: 'bottom' }),
+          };
+
+          return (
+            <div className="controls__strip" key={index}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <div className="controls__motor-pair">
+                {['top', 'bottom'].map((motor) => (
+                <input
+                  key={motor}
+                  className={`controls__motor controls__motor--${motor}`}
+                  type="range"
+                  min="-10"
+                  max="10"
+                  step="0.05"
+                  value={values[motor]}
+                  disabled={presetMode}
+                  aria-label={`Strip ${index + 1} ${motor} motor`}
+                  title={`${motor} ${values[motor].toFixed(2)}`}
+                  style={{ '--progress': `${((values[motor] + 10) / 20) * 100}%` }}
+                  onChange={(event) => setTurn(index, motor, event.target.value)}
+                />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
