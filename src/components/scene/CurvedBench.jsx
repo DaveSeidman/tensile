@@ -36,7 +36,11 @@ function makeBenchGeometry(startDegrees, endDegrees) {
 
 function BenchSection({ start, end, xOffset, rotationY, woodMaterial }) {
   const geometry = useMemo(() => makeBenchGeometry(start, end), [end, start]);
-  const legAngles = useMemo(() => [start + (end - start) * 0.18, start + (end - start) * 0.82], [end, start]);
+  const legAngles = useMemo(() => {
+    const offset = start < end ? 4 : -4;
+    return [start + offset, end - offset];
+  }, [end, start]);
+  const legRadius = 2.02;
 
   return (
     <group position={[xOffset, 0.36, -1.28]} rotation={[0, rotationY, 0]}>
@@ -46,7 +50,7 @@ function BenchSection({ start, end, xOffset, rotationY, woodMaterial }) {
         return (
           <mesh
             key={angleInDegrees}
-            position={[Math.cos(angle) * 1.92, -0.19, Math.sin(angle) * 1.92]}
+            position={[Math.cos(angle) * legRadius, -0.19, Math.sin(angle) * legRadius]}
             rotation={[0, Math.PI / 2, 0]}
             castShadow
             receiveShadow
@@ -66,14 +70,14 @@ export default function CurvedBench({ woodMaterial }) {
       <BenchSection
         start={146}
         end={190}
-        xOffset={-0.28}
+        xOffset={-0.42}
         rotationY={THREE.MathUtils.degToRad(-50)}
         woodMaterial={woodMaterial}
       />
       <BenchSection
         start={34}
         end={-10}
-        xOffset={0.28}
+        xOffset={0.42}
         rotationY={THREE.MathUtils.degToRad(50)}
         woodMaterial={woodMaterial}
       />

@@ -37,6 +37,16 @@ export function sequenceValue(frame, stripIndex, count) {
     return { top: turn, bottom: turn };
   }
 
-  const twist = twistValue(frame - 330, stripIndex, count);
+  if (frame < 980) {
+    const twist = twistValue(frame - 330, stripIndex, count);
+    return { top: twist, bottom: -twist };
+  }
+
+  if (frame < 1400) {
+    const turn = waveValue(frame - 980, stripIndex, 1.35, 0, 120, 10);
+    return { top: turn, bottom: turn };
+  }
+
+  const twist = twistValue(frame - 1400, stripIndex, count);
   return { top: twist, bottom: -twist };
 }
