@@ -1,13 +1,18 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import {
   GAP,
+  FLOOR_HARDWARE_HEIGHT,
+  FLOOR_HARDWARE_RADIUS,
   HOLDER_DEPTH,
   HOLDER_HEIGHT,
   HOLDER_RADIUS,
   HOLDER_WIDTH,
   SEGMENTS,
+  STEM_BOTTOM_LENGTH,
+  STEM_RADIUS,
+  STEM_TOP_LENGTH,
   STRIP_CENTER_Y,
   STRIP_DEPTH,
   STRIP_HEIGHT,
@@ -60,21 +65,49 @@ function makeStripGeometry({ top, bottom }) {
   return geometry;
 }
 
-export default function Strip({ index, count, turns, material, holderMaterial }) {
+export default function Strip({ index, count, turns, material, holderMaterial, stemMaterial, floorHardwareMaterial }) {
   const geometry = useMemo(() => makeStripGeometry(turns), [turns]);
   const spacing = STRIP_WIDTH + GAP;
   const x = ((count - 1) * spacing) / 2 - index * spacing;
   const bottomAngle = Math.PI * turns.bottom;
   const topAngle = Math.PI * turns.top;
+  const bottomHolderY = -STRIP_HEIGHT / 2 - HOLDER_HEIGHT / 2;
+  const topHolderY = STRIP_HEIGHT / 2 + HOLDER_HEIGHT / 2;
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
     <group position={[x, STRIP_CENTER_Y, 0]}>
+      <mesh
+        position={[0, -STRIP_CENTER_Y + FLOOR_HARDWARE_HEIGHT / 2, 0]}
+        material={floorHardwareMaterial}
+        castShadow
+        receiveShadow
+      >
+        <cylinderGeometry args={[FLOOR_HARDWARE_RADIUS, FLOOR_HARDWARE_RADIUS, FLOOR_HARDWARE_HEIGHT, 36]} />
+      </mesh>
+      <mesh
+        position={[0, -STRIP_CENTER_Y + FLOOR_HARDWARE_HEIGHT + 0.01, 0]}
+        material={floorHardwareMaterial}
+        castShadow
+        receiveShadow
+      >
+        <torusGeometry args={[FLOOR_HARDWARE_RADIUS * 0.82, 0.006, 8, 36]} />
+      </mesh>
+      <mesh
+        position={[0, bottomHolderY - HOLDER_HEIGHT / 2 - STEM_BOTTOM_LENGTH / 2, 0]}
+        material={stemMaterial}
+        castShadow
+        receiveShadow
+      >
+        <cylinderGeometry args={[STEM_RADIUS, STEM_RADIUS, STEM_BOTTOM_LENGTH, 24]} />
+      </mesh>
       <mesh geometry={geometry} material={material} castShadow receiveShadow />
       <RoundedBox
         args={[HOLDER_WIDTH, HOLDER_HEIGHT, HOLDER_DEPTH]}
         radius={HOLDER_RADIUS}
         smoothness={6}
-        position={[0, -STRIP_HEIGHT / 2 - HOLDER_HEIGHT / 2, 0]}
+        position={[0, bottomHolderY, 0]}
         rotation={[0, -bottomAngle, 0]}
         material={holderMaterial}
         castShadow
@@ -84,12 +117,20 @@ export default function Strip({ index, count, turns, material, holderMaterial })
         args={[HOLDER_WIDTH, HOLDER_HEIGHT, HOLDER_DEPTH]}
         radius={HOLDER_RADIUS}
         smoothness={6}
-        position={[0, STRIP_HEIGHT / 2 + HOLDER_HEIGHT / 2, 0]}
+        position={[0, topHolderY, 0]}
         rotation={[0, -topAngle, 0]}
         material={holderMaterial}
         castShadow
         receiveShadow
       />
+      <mesh
+        position={[0, topHolderY + HOLDER_HEIGHT / 2 + STEM_TOP_LENGTH / 2, 0]}
+        material={stemMaterial}
+        castShadow
+        receiveShadow
+      >
+        <cylinderGeometry args={[STEM_RADIUS, STEM_RADIUS, STEM_TOP_LENGTH, 24]} />
+      </mesh>
     </group>
   );
 }

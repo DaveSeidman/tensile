@@ -8,7 +8,7 @@ import Strip from './Strip';
 import Workshop from './Workshop';
 import './index.scss';
 
-export default function Scene({ stripCount, turns, playing, presetMode, frame, setFrame, materialSettings, effects }) {
+export default function Scene({ stripCount, turns, playing, presetMode, frame, setFrame, materialSettings, effects, cameraMode }) {
   const finish = MATERIAL_FINISHES[materialSettings.finish] ?? MATERIAL_FINISHES.satin;
   const stripMaterial = useMemo(
     () =>
@@ -18,6 +18,7 @@ export default function Scene({ stripCount, turns, playing, presetMode, frame, s
         metalness: 0,
         clearcoat: finish.clearcoat,
         clearcoatRoughness: 0.35,
+        envMapIntensity: effects.look === 'light' ? 1.35 : 1.8,
         transmission: Math.max(materialSettings.transmission, finish.transmission),
         thickness: 0.22,
         transparent: materialSettings.transmission > 0 || finish.transmission > 0,
@@ -25,17 +26,29 @@ export default function Scene({ stripCount, turns, playing, presetMode, frame, s
         side: THREE.DoubleSide,
         shadowSide: THREE.FrontSide,
       }),
-    [finish.clearcoat, finish.roughness, finish.transmission, materialSettings.color, materialSettings.transmission],
+    [effects.look, finish.clearcoat, finish.roughness, finish.transmission, materialSettings.color, materialSettings.transmission],
   );
   const holderMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: '#f7fbff',
+        color: '#b9bdc2',
         metalness: 1,
         roughness: 0.018,
         clearcoat: 1,
         clearcoatRoughness: 0.01,
-        envMapIntensity: 3.2,
+        envMapIntensity: 5.2,
+      }),
+    [],
+  );
+  const stemMaterial = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color: '#020304',
+        metalness: 0.85,
+        roughness: 0.12,
+        clearcoat: 1,
+        clearcoatRoughness: 0.08,
+        envMapIntensity: 4.4,
       }),
     [],
   );
@@ -48,6 +61,18 @@ export default function Scene({ stripCount, turns, playing, presetMode, frame, s
       }),
     [],
   );
+  const floorHardwareMaterial = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color: '#f4f7fb',
+        metalness: 1,
+        roughness: 0.025,
+        clearcoat: 1,
+        clearcoatRoughness: 0.015,
+        envMapIntensity: 5.6,
+      }),
+    [],
+  );
 
   useFrame((_, delta) => {
     if (!playing) return;
@@ -55,7 +80,7 @@ export default function Scene({ stripCount, turns, playing, presetMode, frame, s
   });
 
   return (
-    <Workshop effects={effects}>
+    <Workshop effects={effects} cameraMode={cameraMode}>
       <RopeBarrier metalMaterial={holderMaterial} ropeMaterial={ropeMaterial} />
       {Array.from({ length: stripCount }, (_, index) => {
         const presetTurns = sequenceValue(frame, index, stripCount);
@@ -69,6 +94,8 @@ export default function Scene({ stripCount, turns, playing, presetMode, frame, s
             turns={activeTurns}
             material={stripMaterial}
             holderMaterial={holderMaterial}
+            stemMaterial={stemMaterial}
+            floorHardwareMaterial={floorHardwareMaterial}
           />
         );
       })}

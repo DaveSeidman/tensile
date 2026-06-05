@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { MAX_FRAME, sequenceValue } from '../../demoSequence';
 import './index.scss';
 
@@ -11,6 +11,12 @@ const FINISHES = [
 const ENVIRONMENTS = [
   ['dark', 'Dark', { look: 'dark', ambient: 0.07, hemi: 0.22, key: 10, fill: 2.2, floor: 1.25, film: 0.22 }],
   ['light', 'Bright', { look: 'light', ambient: 0.28, hemi: 0.72, key: 30, fill: 10, floor: 0.8, film: 0.08 }],
+];
+const CAMERA_MODES = [
+  ['free', 'Free'],
+  ['sweep', 'Sweep'],
+  ['push', 'Push'],
+  ['crane', 'Crane'],
 ];
 
 function getMotorValue({ presetMode, frame, stripCount, turns, index, motor }) {
@@ -46,7 +52,12 @@ export default function Controls({
   setMaterialSettings,
   effects,
   setEffects,
+  cameraMode,
+  setCameraMode,
 }) {
+  const [lookOpen, setLookOpen] = useState(false);
+  const colorInputRef = useRef(null);
+  const cameraLabel = CAMERA_MODES.find(([value]) => value === cameraMode)?.[1] ?? CAMERA_MODES[0][1];
   const setTurn = (index, motor, value) => {
     setTurns((current) => {
       const next = [...current];
@@ -66,6 +77,12 @@ export default function Controls({
 
     setPresetMode(true);
     setPlaying(true);
+  };
+  const cycleCameraMode = () => {
+    setCameraMode((current) => {
+      const index = CAMERA_MODES.findIndex(([value]) => value === current);
+      return CAMERA_MODES[(index + 1) % CAMERA_MODES.length][0];
+    });
   };
 
   return (
@@ -92,6 +109,7 @@ export default function Controls({
         <button onClick={toggleMode}>{presetMode ? 'Manual' : 'Demo'}</button>
         <button onClick={() => setPlaying(!playing)}>{playing ? 'Pause' : 'Play'}</button>
         <button onClick={() => setFrame(0)}>Restart</button>
+        <button onClick={cycleCameraMode}>Camera {cameraLabel}</button>
       </div>
 
       <label className="controls__field">
@@ -107,10 +125,10 @@ export default function Controls({
         />
       </label>
 
-      <details className="controls__material">
+      <details className="controls__material" onToggle={(event) => setLookOpen(event.currentTarget.open)}>
         <summary>
           <span>Look</span>
-          <strong>{FINISHES.find(([value]) => value === materialSettings.finish)?.[1]}</strong>
+          <strong>{lookOpen ? 'Close' : 'Open'}</strong>
         </summary>
         <div className="controls__material-body">
           <div className="controls__section-title">Lighting</div>
@@ -119,6 +137,7 @@ export default function Controls({
               <button
                 type="button"
                 key={value}
+                className={effects.look === value ? 'is-active' : ''}
                 onClick={() => setEffects((current) => ({ ...current, ...preset }))}
               >
                 {label}
@@ -126,21 +145,18 @@ export default function Controls({
             ))}
           </div>
           <div className="controls__section-title">Material</div>
-          <label className="controls__color">
+          <div className="controls__color">
             <span>Color</span>
-            <span
+            <button
+              type="button"
               className="controls__color-button"
               style={{
                 '--swatch-color': materialSettings.color,
                 '--swatch-icon': getSwatchIconColor(materialSettings.color),
               }}
+              aria-label="Choose material color"
+              onClick={() => colorInputRef.current?.click()}
             >
-              <input
-                type="color"
-                aria-label="Choose material color"
-                value={materialSettings.color}
-                onChange={(event) => setMaterialSettings((current) => ({ ...current, color: event.target.value }))}
-              />
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path
                   d="M14.8 3.8c.5-.5 1.2-.8 2-.8s1.5.3 2 .8l1.4 1.4c1 1 1 2.6 0 3.5l-1.1 1.1 1.6 1.6-2.8 2.8-1.6-1.6-5.3 5.3c-.5.5-1.1.8-1.8.8H7.1l-.8 1.9-2.4.8.8-2.4 1.9-.8v-1.1c0-.7.3-1.3.8-1.8l5.3-5.3-1.6-1.6 2.8-2.8 1.6 1.6 1.1-1.1c.3-.3.3-.8 0-1.1l-1.4-1.4c-.3-.3-.8-.3-1.1 0l-1.3 1.3"
@@ -151,8 +167,16 @@ export default function Controls({
                   strokeLinejoin="round"
                 />
               </svg>
-            </span>
-          </label>
+            </button>
+            <input
+              ref={colorInputRef}
+              className="controls__color-input"
+              type="color"
+              aria-label="Choose material color"
+              value={materialSettings.color}
+              onChange={(event) => setMaterialSettings((current) => ({ ...current, color: event.target.value }))}
+            />
+          </div>
           <div className="controls__segments">
             {FINISHES.map(([value, label]) => (
               <button

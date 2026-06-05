@@ -5,8 +5,13 @@ export const HOLDER_HEIGHT = 1 / 12;
 export const HOLDER_WIDTH = STRIP_WIDTH * 1.18;
 export const HOLDER_DEPTH = STRIP_DEPTH * 1.4;
 export const HOLDER_RADIUS = 0.009;
+export const STEM_RADIUS = 0.012;
+export const STEM_TOP_LENGTH = 0.56;
+export const STEM_BOTTOM_LENGTH = 0.12;
+export const FLOOR_HARDWARE_HEIGHT = 0.045;
+export const FLOOR_HARDWARE_RADIUS = HOLDER_WIDTH / 4;
 export const GAP = 0.5 / 12;
-export const SEGMENTS = 192;
+export const SEGMENTS = 128;
 export const ORBIT_MIN_POLAR_ANGLE = (55 * Math.PI) / 180;
 export const ORBIT_MAX_POLAR_ANGLE = (105 * Math.PI) / 180;
 export const CAMERA_TARGET = [0, 2.12, 0];
@@ -15,8 +20,8 @@ export const STRIP_CENTER_Y = 2.18;
 
 export const MATERIAL_FINISHES = {
   matte: { roughness: 0.72, clearcoat: 0.04, transmission: 0 },
-  satin: { roughness: 0.38, clearcoat: 0.14, transmission: 0 },
-  gloss: { roughness: 0.12, clearcoat: 0.7, transmission: 0 },
+  satin: { roughness: 0.26, clearcoat: 0.22, transmission: 0 },
+  gloss: { roughness: 0.08, clearcoat: 0.85, transmission: 0 },
 };
 
 export const ROPE_POSTS = [

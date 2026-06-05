@@ -55,7 +55,7 @@
 
   &__buttons {
     display: grid;
-    grid-template-columns: 1fr 0.7fr 0.7fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     margin: 12px 0 16px;
 
@@ -147,26 +147,47 @@
 
   &__color {
     display: grid;
-    grid-template-columns: 1fr 44px;
+    grid-template-columns: 1fr 40px;
     align-items: center;
     gap: 10px;
     color: #d8d3c7;
     font-size: 13px;
+  }
 
-    input {
-      width: 44px;
-      height: 30px;
-      padding: 0;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      border-radius: 7px;
-      background: transparent;
-      cursor: pointer;
+  &__color-button {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 50%;
+    background: var(--swatch-color);
+    color: var(--swatch-icon);
+    overflow: hidden;
+    cursor: pointer;
+
+    svg {
+      position: relative;
+      z-index: 1;
+      width: 19px;
+      height: 19px;
+      pointer-events: none;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.32));
     }
   }
 
+  &__color-input {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   &__segments {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: flex;
     gap: 4px;
     padding: 3px;
     border: 1px solid rgba(255, 255, 255, 0.11);
@@ -174,6 +195,8 @@
     background: rgba(255, 255, 255, 0.045);
 
     button {
+      flex: 1 1 0;
+      min-width: 0;
       min-height: 30px;
       border: 0;
       border-radius: 5px;

@@ -1,63 +1,51 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Environment, OrbitControls, PerspectiveCamera } from '@react-three/drei';
-import { useLoader } from '@react-three/fiber';
+import { Environment, MeshReflectorMaterial, OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import {
   CAMERA_POSITION,
   CAMERA_TARGET,
-  FLOOR_LIGHTS,
   ORBIT_MAX_POLAR_ANGLE,
   ORBIT_MIN_POLAR_ANGLE,
 } from './constants';
+import autoshopEnvironment from '../../assets/images/autoshop_01_4k.exr';
 import CurvedBench from './CurvedBench';
+import FloorLamps from './FloorLamps';
 import PostProcessing from './PostProcessing';
-import Uplight from './Uplight';
 
-export default function Workshop({ children, effects }) {
+const CAMERA_LOOK_TARGET = new THREE.Vector3(...CAMERA_TARGET);
+
+function smoothstep(value) {
+  return value * value * (3 - 2 * value);
+}
+
+export default function Workshop({ children, effects, cameraMode }) {
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
-  const [benchColor, benchNormal, benchRoughness, floorColor, floorNormal, floorRoughness, wallColor, wallNormal, wallRoughness] =
-    useLoader(EXRLoader, [
-      'textures/weathered_planks_diff_1k.exr',
-      'textures/weathered_planks_nor_dx_1k.exr',
-      'textures/weathered_planks_rough_1k.exr',
-      'textures/concrete_floor_worn_001_diff_1k.exr',
-      'textures/concrete_floor_worn_001_nor_dx_1k.exr',
-      'textures/concrete_floor_worn_001_rough_1k.exr',
-      'textures/concrete_floor_worn_001_diff_1k.exr',
-      'textures/concrete_floor_worn_001_nor_dx_1k.exr',
-      'textures/concrete_floor_worn_001_rough_1k.exr',
-    ]);
+  const cameraPathStartRef = useRef(0);
+  const environmentMap = useLoader(EXRLoader, autoshopEnvironment);
+  const floorColor = useLoader(EXRLoader, 'textures/concrete_floor_worn_001_diff_1k.exr');
+
+  const isDev = location.hostname === 'localhost';
 
   useMemo(() => {
-    [benchColor, benchNormal, benchRoughness, floorColor, floorNormal, floorRoughness, wallColor, wallNormal, wallRoughness].forEach((texture) => {
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.needsUpdate = true;
-    });
+    environmentMap.mapping = THREE.EquirectangularReflectionMapping;
+    environmentMap.colorSpace = THREE.LinearSRGBColorSpace;
+    environmentMap.needsUpdate = true;
 
-    benchColor.colorSpace = THREE.SRGBColorSpace;
+    floorColor.wrapS = THREE.RepeatWrapping;
+    floorColor.wrapT = THREE.RepeatWrapping;
+    floorColor.needsUpdate = true;
     floorColor.colorSpace = THREE.SRGBColorSpace;
-    wallColor.colorSpace = THREE.SRGBColorSpace;
-
-    benchColor.repeat.set(2.2, 0.9);
-    benchNormal.repeat.set(2.2, 0.9);
-    benchRoughness.repeat.set(2.2, 0.9);
-
     floorColor.repeat.set(4, 3);
-    floorNormal.repeat.set(18, 14);
-    floorRoughness.repeat.set(4, 3);
-
-    wallColor.repeat.set(2.5, 1.6);
-    wallNormal.repeat.set(8, 5);
-    wallRoughness.repeat.set(2.5, 1.6);
-  }, [benchColor, benchNormal, benchRoughness, floorColor, floorNormal, floorRoughness, wallColor, wallNormal, wallRoughness]);
+  }, [environmentMap, floorColor]);
 
   const sceneSurfaces = effects.look === 'light'
     ? {
       background: '#f7f7f4',
       floorTint: '#ffffff',
+      floodTint: '#dce9f2',
       wallTint: '#ffffff',
       metalness: 0.45,
       roughness: 0.22,
@@ -65,24 +53,11 @@ export default function Workshop({ children, effects }) {
     : {
       background: '#050608',
       floorTint: '#8f9390',
+      floodTint: '#27313a',
       wallTint: '#9ca0a4',
       metalness: 0.18,
       roughness: 0.58,
     };
-  const woodMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: '#b38a63',
-        map: benchColor,
-        normalMap: benchNormal,
-        roughnessMap: benchRoughness,
-        roughness: 0.92,
-        metalness: 0,
-        normalScale: new THREE.Vector2(0.45, 0.28),
-      }),
-    [benchColor, benchNormal, benchRoughness],
-  );
-
   useEffect(() => {
     const resetCamera = (event) => {
       if (event.key.toLowerCase() !== 'f' || !cameraRef.current || !controlsRef.current) return;
@@ -95,6 +70,42 @@ export default function Workshop({ children, effects }) {
     window.addEventListener('keydown', resetCamera);
     return () => window.removeEventListener('keydown', resetCamera);
   }, []);
+
+  useEffect(() => {
+    cameraPathStartRef.current = 0;
+  }, [cameraMode]);
+
+  useFrame(({ clock }) => {
+    if (cameraMode === 'free' || !cameraRef.current) return;
+    if (cameraPathStartRef.current === 0) cameraPathStartRef.current = clock.elapsedTime;
+
+    const elapsed = clock.elapsedTime - cameraPathStartRef.current;
+    const camera = cameraRef.current;
+
+    if (cameraMode === 'sweep') {
+      const yaw = Math.sin(elapsed * 0.42) * 0.48;
+      const radius = 6.35;
+      camera.position.set(Math.sin(yaw) * radius, 1.62, -Math.cos(yaw) * radius);
+    }
+
+    if (cameraMode === 'push') {
+      const cycle = (Math.sin(elapsed * 0.28 - Math.PI / 2) + 1) / 2;
+      const eased = smoothstep(cycle);
+      camera.position.set(0, 1.48 + eased * 0.12, -7.2 + eased * 2.25);
+    }
+
+    if (cameraMode === 'crane') {
+      const cycle = (Math.sin(elapsed * 0.34 - Math.PI / 2) + 1) / 2;
+      const eased = smoothstep(cycle);
+      camera.position.set(-2.1 + eased * 4.2, 1.05 + eased * 0.95, -5.25 + Math.sin(elapsed * 0.34) * 0.25);
+    }
+
+    camera.lookAt(CAMERA_LOOK_TARGET);
+    if (controlsRef.current) {
+      controlsRef.current.target.copy(CAMERA_LOOK_TARGET);
+      controlsRef.current.update();
+    }
+  });
 
   return (
     <>
@@ -112,16 +123,18 @@ export default function Workshop({ children, effects }) {
         shadow-normalBias={0.025}
       />
       <pointLight position={[0, 1.35, -2]} color="#bcd1ff" intensity={effects.fill} distance={5.5} decay={2} />
-      <Environment preset="warehouse" environmentIntensity={0.12} />
+      <pointLight position={[0, 2.1, 1.45]} color="#dce7ff" intensity={effects.look === 'light' ? 3.5 : 5.5} distance={4.2} decay={2} />
+      <Environment map={environmentMap} environmentIntensity={effects.look === 'light' ? 0.72 : 0.48} />
       <PerspectiveCamera ref={cameraRef} makeDefault position={CAMERA_POSITION} fov={42} />
       <OrbitControls
         ref={controlsRef}
         target={CAMERA_TARGET}
-        minPolarAngle={ORBIT_MIN_POLAR_ANGLE}
-        maxPolarAngle={ORBIT_MAX_POLAR_ANGLE}
-        minDistance={3.2}
-        maxDistance={8}
-        enablePan={false}
+        enabled={cameraMode === 'free'}
+        minPolarAngle={isDev ? 0 : ORBIT_MIN_POLAR_ANGLE}
+        maxPolarAngle={isDev ? Math.PI : ORBIT_MAX_POLAR_ANGLE}
+        minDistance={isDev ? undefined : 3.2}
+        maxDistance={isDev ? undefined : 8}
+        enablePan={isDev}
         enableDamping
       />
       <PostProcessing enabled={effects.post} filmIntensity={effects.film} />
@@ -133,34 +146,39 @@ export default function Workshop({ children, effects }) {
           map={effects.look === 'light' ? null : floorColor}
           metalness={sceneSurfaces.metalness}
           roughness={sceneSurfaces.roughness}
-          normalMap={floorNormal}
-          roughnessMap={floorRoughness}
-          normalScale={[0.35, 0.35]}
+        />
+      </mesh>
+      <mesh position={[0, 0.006, 0.25]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[15, 11]} />
+        <MeshReflectorMaterial
+          color={sceneSurfaces.floodTint}
+          blur={[900, 320]}
+          resolution={1024}
+          mixBlur={effects.look === 'light' ? 1.55 : 1.22}
+          mixStrength={effects.look === 'light' ? 2.2 : 3.35}
+          mixContrast={effects.look === 'light' ? 0.98 : 1.18}
+          mirror={effects.look === 'light' ? 0.54 : 0.74}
+          depthScale={0.14}
+          minDepthThreshold={0.25}
+          maxDepthThreshold={1.45}
+          roughness={effects.look === 'light' ? 0.18 : 0.12}
+          metalness={0.05}
+          envMapIntensity={effects.look === 'light' ? 1.5 : 1.85}
+          transparent
+          opacity={effects.look === 'light' ? 0.62 : 0.86}
         />
       </mesh>
       <mesh position={[0, 2.1, 1.85]} receiveShadow>
         <boxGeometry args={[7.5, 4.4, 0.08]} />
         <meshStandardMaterial
           color={sceneSurfaces.wallTint}
-          map={effects.look === 'light' ? null : wallColor}
+          map={effects.look === 'light' ? null : floorColor}
           metalness={sceneSurfaces.metalness * 0.6}
           roughness={sceneSurfaces.roughness}
-          normalMap={wallNormal}
-          roughnessMap={wallRoughness}
-          normalScale={[0.1, 0.1]}
         />
       </mesh>
-      <CurvedBench woodMaterial={woodMaterial} />
-
-      {FLOOR_LIGHTS.map(([x, y, z, color, intensity, rotationY]) => (
-        <Uplight
-          key={`${x}-${z}`}
-          position={[x, y, z]}
-          color={color}
-          intensity={intensity * effects.floor}
-          rotationY={rotationY}
-        />
-      ))}
+      <CurvedBench />
+      <FloorLamps floorIntensity={effects.floor} />
 
       {children}
     </>

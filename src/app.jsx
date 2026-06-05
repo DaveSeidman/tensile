@@ -7,7 +7,7 @@ import './index.scss';
 const MAX_STRIPS = 24;
 const DEFAULT_MATERIAL = {
   color: '#d2cec0',
-  finish: 'satin',
+  finish: 'gloss',
   transmission: 0,
 };
 const DEFAULT_EFFECTS = {
@@ -18,7 +18,7 @@ const DEFAULT_EFFECTS = {
   fill: 2.2,
   floor: 1.25,
   film: 0.22,
-  post: true,
+  post: false,
 };
 
 export default function App() {
@@ -29,6 +29,7 @@ export default function App() {
   const [frame, setFrame] = useState(0);
   const [materialSettings, setMaterialSettings] = useState(DEFAULT_MATERIAL);
   const [effects, setEffects] = useState(DEFAULT_EFFECTS);
+  const [cameraMode, setCameraMode] = useState('free');
   const [devOpen, setDevOpen] = useState(false);
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function App() {
           setFrame={setFrame}
           materialSettings={materialSettings}
           effects={effects}
+          cameraMode={cameraMode}
         />
       </Canvas>
       {devOpen && (
@@ -102,6 +104,8 @@ export default function App() {
         setMaterialSettings={setMaterialSettings}
         effects={effects}
         setEffects={setEffects}
+        cameraMode={cameraMode}
+        setCameraMode={setCameraMode}
       />
     </main>
   );

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   base: '/tensile/',
+  assetsInclude: ['**/*.exr'],
   plugins: [react()],
   server: {
     port: 8080

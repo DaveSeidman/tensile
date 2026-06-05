@@ -1,43 +1,20 @@
-import React, { useEffect, useMemo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import React from 'react';
+import { DepthOfField, EffectComposer, Noise, ToneMapping } from '@react-three/postprocessing';
+import { BlendFunction, ToneMappingMode } from 'postprocessing';
 
 export default function PostProcessing({ enabled, filmIntensity }) {
-  const { gl, scene, camera, size } = useThree();
-  const composer = useMemo(() => {
-    const nextComposer = new EffectComposer(gl);
-    nextComposer.addPass(new RenderPass(scene, camera));
-    nextComposer.addPass(
-      new BokehPass(scene, camera, {
-        focus: 6.45,
-        aperture: 0.00058,
-        maxblur: 0.016,
-      }),
-    );
-    nextComposer.addPass(new FilmPass(filmIntensity, false));
-    nextComposer.addPass(new OutputPass());
-    return nextComposer;
-  }, [camera, filmIntensity, gl, scene]);
+  if (!enabled) return null;
 
-  useEffect(() => {
-    composer.setSize(size.width, size.height);
-  }, [composer, size.height, size.width]);
-
-  useEffect(
-    () => () => {
-      composer.dispose();
-    },
-    [composer],
+  return (
+    <EffectComposer multisampling={4}>
+      <DepthOfField
+        focusDistance={0.018}
+        focalLength={0.028}
+        bokehScale={0.85}
+        height={480}
+      />
+      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={filmIntensity} />
+      <ToneMapping mode={ToneMappingMode.AGX} />
+    </EffectComposer>
   );
-
-  useFrame((_, delta) => {
-    if (!enabled) return;
-    composer.render(delta);
-  }, 1);
-
-  return null;
 }

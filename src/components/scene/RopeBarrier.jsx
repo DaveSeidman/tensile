@@ -42,9 +42,6 @@ function Post({ position, material }) {
       <mesh position={[0, height, 0]} material={material} castShadow receiveShadow>
         <sphereGeometry args={[0.078, 36, 18]} />
       </mesh>
-      <mesh position={[0, height + 0.085, 0]} material={material} castShadow receiveShadow>
-        <cylinderGeometry args={[0.038, 0.052, 0.09, 32]} />
-      </mesh>
       <mesh position={[0, height, 0]} rotation={[Math.PI / 2, 0, 0]} material={material} castShadow receiveShadow>
         <torusGeometry args={[0.13, 0.012, 10, 40]} />
       </mesh>
