@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import Controls from './components/controls';
 import Scene from './components/scene';
+import { useWebcamInput } from './useWebcamInput';
 import './index.scss';
 
 const MAX_STRIPS = 24;
@@ -20,9 +21,10 @@ const DEFAULT_EFFECTS = {
   film: 0.22,
   post: false,
 };
+const DEFAULT_WEBCAM_SENSITIVITY = 0.58;
 
 export default function App() {
-  const [stripCount, setStripCount] = useState(18);
+  const [stripCount, setStripCount] = useState(20);
   const [turns, setTurns] = useState(() => Array.from({ length: MAX_STRIPS }, () => ({ top: 0, bottom: 0 })));
   const [playing, setPlaying] = useState(true);
   const [presetMode, setPresetMode] = useState(true);
@@ -30,7 +32,15 @@ export default function App() {
   const [materialSettings, setMaterialSettings] = useState(DEFAULT_MATERIAL);
   const [effects, setEffects] = useState(DEFAULT_EFFECTS);
   const [cameraMode, setCameraMode] = useState('free');
+  const [webcamEnabled, setWebcamEnabled] = useState(false);
+  const [webcamSensitivity, setWebcamSensitivity] = useState(DEFAULT_WEBCAM_SENSITIVITY);
   const [devOpen, setDevOpen] = useState(false);
+  const webcam = useWebcamInput({
+    enabled: webcamEnabled,
+    stripCount,
+    maxStrips: MAX_STRIPS,
+    sensitivity: webcamSensitivity,
+  });
 
   useEffect(() => {
     const toggleDev = (event) => {
@@ -56,8 +66,12 @@ export default function App() {
           materialSettings={materialSettings}
           effects={effects}
           cameraMode={cameraMode}
+          webcamEnabled={webcamEnabled}
+          webcamTurns={webcam.turns}
         />
       </Canvas>
+      <video ref={webcam.videoRef} className="app__camera-source" muted playsInline aria-hidden="true" />
+      <canvas ref={webcam.canvasRef} className="app__camera-source" aria-hidden="true" />
       {devOpen && (
         <section className="dev-panel">
           <header>
@@ -106,6 +120,14 @@ export default function App() {
         setEffects={setEffects}
         cameraMode={cameraMode}
         setCameraMode={setCameraMode}
+        webcamEnabled={webcamEnabled}
+        setWebcamEnabled={setWebcamEnabled}
+        webcamTurns={webcam.turns}
+        webcamDebug={webcam.debug}
+        webcamStatus={webcam.status}
+        webcamError={webcam.error}
+        webcamSensitivity={webcamSensitivity}
+        setWebcamSensitivity={setWebcamSensitivity}
       />
     </main>
   );

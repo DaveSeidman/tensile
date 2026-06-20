@@ -8,7 +8,19 @@ import Strip from './Strip';
 import Workshop from './Workshop';
 import './index.scss';
 
-export default function Scene({ stripCount, turns, playing, presetMode, frame, setFrame, materialSettings, effects, cameraMode }) {
+export default function Scene({
+  stripCount,
+  turns,
+  playing,
+  presetMode,
+  frame,
+  setFrame,
+  materialSettings,
+  effects,
+  cameraMode,
+  webcamEnabled,
+  webcamTurns,
+}) {
   const finish = MATERIAL_FINISHES[materialSettings.finish] ?? MATERIAL_FINISHES.satin;
   const stripMaterial = useMemo(
     () =>
@@ -85,7 +97,11 @@ export default function Scene({ stripCount, turns, playing, presetMode, frame, s
       {Array.from({ length: stripCount }, (_, index) => {
         const presetTurns = sequenceValue(frame, index, stripCount);
         const manualTurns = typeof turns[index] === 'number' ? { top: turns[index], bottom: -turns[index] } : turns[index];
-        const activeTurns = presetMode ? presetTurns : manualTurns ?? { top: 0, bottom: 0 };
+        const activeTurns = webcamEnabled
+          ? webcamTurns[index] ?? { top: 0, bottom: 0 }
+          : presetMode
+            ? presetTurns
+            : manualTurns ?? { top: 0, bottom: 0 };
         return (
           <Strip
             key={index}

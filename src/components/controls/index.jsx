@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MAX_FRAME, sequenceValue } from '../../demoSequence';
 import './index.scss';
 
@@ -18,8 +18,22 @@ const CAMERA_MODES = [
   ['push', 'Push'],
   ['crane', 'Crane'],
 ];
+const WEBCAM_STATUS_LABELS = {
+  idle: 'Off',
+  requesting: 'Requesting',
+  live: 'Live',
+  error: 'Error',
+};
+const DEBUG_FLOW_MAX = 4;
+const MOTOR_LIMIT = 20;
+const MAX_STRAND_TWIST = 20;
+const FLOW_CANVAS_HEIGHT = 72;
 
-function getMotorValue({ presetMode, frame, stripCount, turns, index, motor }) {
+function getMotorValue({ webcamEnabled, webcamTurns, presetMode, frame, stripCount, turns, index, motor }) {
+  if (webcamEnabled) {
+    return webcamTurns?.[index]?.[motor] ?? 0;
+  }
+
   if (presetMode) {
     return sequenceValue(frame, index, stripCount)[motor];
   }
@@ -35,6 +49,110 @@ function getSwatchIconColor(hex) {
   const blue = Number.parseInt(expanded.slice(4, 6), 16);
   const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
   return luminance > 160 ? '#111318' : '#f7f8fa';
+}
+
+function getMotorProgress(value) {
+  return `${Math.max(0, Math.min(100, ((value + MOTOR_LIMIT) / (MOTOR_LIMIT * 2)) * 100))}%`;
+}
+
+function clampMotorValue(value) {
+  return Math.max(-MOTOR_LIMIT, Math.min(MOTOR_LIMIT, value));
+}
+
+function drawFlowCanvas(canvas, debug, fallbackColumns) {
+  const context = canvas.getContext('2d');
+  if (!context) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const cssWidth = Math.max(1, Math.round(rect.width || canvas.clientWidth || 300));
+  const cssHeight = Math.max(1, Math.round(rect.height || FLOW_CANVAS_HEIGHT));
+  const ratio = window.devicePixelRatio || 1;
+
+  if (canvas.width !== Math.round(cssWidth * ratio)) canvas.width = Math.round(cssWidth * ratio);
+  if (canvas.height !== Math.round(cssHeight * ratio)) canvas.height = Math.round(cssHeight * ratio);
+
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.clearRect(0, 0, cssWidth, cssHeight);
+
+  const columns = Math.max(1, debug?.columns ?? fallbackColumns);
+  const topVectors = debug?.topVectors ?? [];
+  const bottomVectors = debug?.bottomVectors ?? [];
+  const rows = [
+    { vectors: topVectors, y: cssHeight * 0.3, color: '#f1f4f8' },
+    { vectors: bottomVectors, y: cssHeight * 0.7, color: '#aeb7c4' },
+  ];
+  const columnWidth = cssWidth / columns;
+
+  context.fillStyle = '#050608';
+  context.fillRect(0, 0, cssWidth, cssHeight);
+
+  context.strokeStyle = 'rgba(217, 221, 228, 0.09)';
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(0, cssHeight / 2);
+  context.lineTo(cssWidth, cssHeight / 2);
+  for (let column = 1; column < columns; column += 1) {
+    const x = column * columnWidth;
+    context.moveTo(x, 0);
+    context.lineTo(x, cssHeight);
+  }
+  context.stroke();
+
+  rows.forEach(({ vectors, y, color }) => {
+    context.strokeStyle = 'rgba(217, 221, 228, 0.16)';
+    context.lineWidth = 1;
+    context.beginPath();
+    for (let column = 0; column < columns; column += 1) {
+      const vector = vectors[column];
+      const x = column * columnWidth + columnWidth / 2;
+      const offset = (vector?.turn ?? 0) * 2.4;
+      if (column === 0) context.moveTo(x, y - offset);
+      else context.lineTo(x, y - offset);
+    }
+    context.stroke();
+
+    for (let column = 0; column < columns; column += 1) {
+      const vector = vectors[column];
+      const magnitude = Math.min(1, (vector?.magnitude ?? 0) / DEBUG_FLOW_MAX);
+      const x = column * columnWidth + columnWidth / 2;
+      context.globalAlpha = 0.08 + magnitude * 0.28;
+      context.fillStyle = color;
+      context.beginPath();
+      context.arc(x, y, 1.5 + magnitude * 3.2, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.globalAlpha = 1;
+
+    vectors.forEach((vector, column) => {
+      const dx = vector?.dx ?? 0;
+      const dy = vector?.dy ?? 0;
+      const magnitude = Math.min(1, (vector?.magnitude ?? 0) / DEBUG_FLOW_MAX);
+      if (magnitude <= 0.005) return;
+
+      const x = column * columnWidth + columnWidth / 2;
+      const angle = Math.atan2(dy, dx);
+      const length = 5 + magnitude * Math.min(32, columnWidth * 0.82);
+      const endX = x + Math.cos(angle) * length;
+      const endY = y + Math.sin(angle) * length;
+      const head = 4 + magnitude * 3;
+
+      context.globalAlpha = 0.34 + magnitude * 0.66;
+      context.strokeStyle = color;
+      context.fillStyle = color;
+      context.lineWidth = 1.2 + magnitude * 1.4;
+      context.beginPath();
+      context.moveTo(x, y);
+      context.lineTo(endX, endY);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(endX, endY);
+      context.lineTo(endX - Math.cos(angle - 0.65) * head, endY - Math.sin(angle - 0.65) * head);
+      context.lineTo(endX - Math.cos(angle + 0.65) * head, endY - Math.sin(angle + 0.65) * head);
+      context.closePath();
+      context.fill();
+    });
+    context.globalAlpha = 1;
+  });
 }
 
 export default function Controls({
@@ -54,27 +172,84 @@ export default function Controls({
   setEffects,
   cameraMode,
   setCameraMode,
+  webcamEnabled,
+  setWebcamEnabled,
+  webcamTurns,
+  webcamDebug,
+  webcamStatus,
+  webcamError,
+  webcamSensitivity,
+  setWebcamSensitivity,
 }) {
   const [lookOpen, setLookOpen] = useState(false);
   const colorInputRef = useRef(null);
+  const flowCanvasRef = useRef(null);
+  const flowCanvasStateRef = useRef({ debug: webcamDebug, stripCount });
   const cameraLabel = CAMERA_MODES.find(([value]) => value === cameraMode)?.[1] ?? CAMERA_MODES[0][1];
+  const inputModeLabel = webcamEnabled ? 'Webcam' : presetMode ? 'Demo' : 'Free';
+  const webcamStatusLabel = WEBCAM_STATUS_LABELS[webcamStatus] ?? webcamStatus;
+  flowCanvasStateRef.current = { debug: webcamDebug, stripCount };
+
+  useEffect(() => {
+    const canvas = flowCanvasRef.current;
+    if (!canvas) return undefined;
+
+    const draw = () =>
+      drawFlowCanvas(canvas, flowCanvasStateRef.current.debug, flowCanvasStateRef.current.stripCount);
+    draw();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', draw);
+      return () => window.removeEventListener('resize', draw);
+    }
+
+    const resizeObserver = new ResizeObserver(draw);
+    resizeObserver.observe(canvas);
+    return () => resizeObserver.disconnect();
+  }, [webcamEnabled, webcamStatus]);
+
+  useEffect(() => {
+    const canvas = flowCanvasRef.current;
+    if (canvas) drawFlowCanvas(canvas, webcamDebug, stripCount);
+  }, [stripCount, webcamDebug]);
+
   const setTurn = (index, motor, value) => {
     setTurns((current) => {
       const next = [...current];
+      const currentTurn = next[index] ?? { top: 0, bottom: 0 };
+      const nextValue = clampMotorValue(Number(value));
+      const top =
+        motor === 'top'
+          ? Math.max(currentTurn.bottom - MAX_STRAND_TWIST, Math.min(currentTurn.bottom + MAX_STRAND_TWIST, nextValue))
+          : currentTurn.top;
+      const bottom =
+        motor === 'bottom'
+          ? Math.max(top - MAX_STRAND_TWIST, Math.min(top + MAX_STRAND_TWIST, nextValue))
+          : currentTurn.bottom;
+
       next[index] = {
-        ...(next[index] ?? { top: 0, bottom: 0 }),
-        [motor]: Number(value),
+        top: clampMotorValue(top),
+        bottom: clampMotorValue(bottom),
       };
       return next;
     });
   };
-  const toggleMode = () => {
-    if (presetMode) {
+  const cycleInputMode = () => {
+    if (presetMode && !webcamEnabled) {
+      setWebcamEnabled(true);
       setPresetMode(false);
       setPlaying(false);
       return;
     }
 
+    if (webcamEnabled) {
+      setWebcamEnabled(false);
+      setPresetMode(false);
+      setPlaying(false);
+      return;
+    }
+
+    setWebcamEnabled(false);
     setPresetMode(true);
     setPlaying(true);
   };
@@ -106,11 +281,43 @@ export default function Controls({
       </label>
 
       <div className="controls__buttons">
-        <button onClick={toggleMode}>{presetMode ? 'Manual' : 'Demo'}</button>
-        <button onClick={() => setPlaying(!playing)}>{playing ? 'Pause' : 'Play'}</button>
-        <button onClick={() => setFrame(0)}>Restart</button>
+        <button onClick={cycleInputMode}>Mode: {inputModeLabel}</button>
+        <button onClick={() => setPlaying(!playing)} disabled={webcamEnabled}>
+          {playing ? 'Pause' : 'Play'}
+        </button>
+        <button onClick={() => setFrame(0)} disabled={webcamEnabled}>
+          Restart
+        </button>
         <button onClick={cycleCameraMode}>Camera {cameraLabel}</button>
       </div>
+
+      {(webcamEnabled || webcamStatus === 'error') && (
+        <section className="controls__camera-debug">
+          <div className="controls__camera-debug-header">
+            <span>Optical Flow</span>
+            <strong>{webcamStatusLabel}</strong>
+          </div>
+          <label className="controls__field controls__field--compact">
+            <span>
+              Sensitivity <strong>{Math.round(webcamSensitivity * 100)}%</strong>
+            </span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={webcamSensitivity}
+              onChange={(event) => setWebcamSensitivity(Number(event.target.value))}
+            />
+          </label>
+          {webcamError && <p className="controls__camera-error">{webcamError}</p>}
+          <canvas
+            ref={flowCanvasRef}
+            className="controls__flow-canvas"
+            aria-label="Top and bottom optical flow by strand"
+          />
+        </section>
+      )}
 
       <label className="controls__field">
         <span>
@@ -210,8 +417,26 @@ export default function Controls({
       <div className="controls__sliders">
         {Array.from({ length: stripCount }, (_, index) => {
           const values = {
-            top: getMotorValue({ presetMode, frame, stripCount, turns, index, motor: 'top' }),
-            bottom: getMotorValue({ presetMode, frame, stripCount, turns, index, motor: 'bottom' }),
+            top: getMotorValue({
+              webcamEnabled,
+              webcamTurns,
+              presetMode,
+              frame,
+              stripCount,
+              turns,
+              index,
+              motor: 'top',
+            }),
+            bottom: getMotorValue({
+              webcamEnabled,
+              webcamTurns,
+              presetMode,
+              frame,
+              stripCount,
+              turns,
+              index,
+              motor: 'bottom',
+            }),
           };
 
           return (
@@ -223,14 +448,14 @@ export default function Controls({
                     key={motor}
                     className={`controls__motor controls__motor--${motor}`}
                     type="range"
-                    min="-10"
-                    max="10"
+                    min={-MOTOR_LIMIT}
+                    max={MOTOR_LIMIT}
                     step="0.05"
                     value={values[motor]}
-                    disabled={presetMode}
+                    disabled={presetMode || webcamEnabled}
                     aria-label={`Strip ${index + 1} ${motor} motor`}
                     title={`${motor} ${values[motor].toFixed(2)}`}
-                    style={{ '--progress': `${((values[motor] + 10) / 20) * 100}%` }}
+                    style={{ '--progress': getMotorProgress(values[motor]) }}
                     onChange={(event) => setTurn(index, motor, event.target.value)}
                   />
                 ))}
